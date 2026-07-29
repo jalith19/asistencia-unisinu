@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>UNISINU · Registro y Asistencia · Maratón de Programación</title>
+    <meta name="description"
+        content="Registro de participantes y control de asistencia por código QR para proyectos y fases de la Universidad del Sinú." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&family=JetBrains+Mono:wght@400;600;700&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+
+<body>
+
+    <header class="topbar">
+        <div class="brand">
+            <span class="brand__mark">UNISINU</span>
+            <span class="brand__sub">REGISTRO · ASISTENCIA</span>
+        </div>
+        <a href="#" class="topbar__home" id="topbar-home-link">Inicio</a>
+    </header>
+
+    <main>
+
+        <!-- HOME -->
+        <section id="view-home" class="view active">
+            <div class="hero">
+                <h1>Registro y asistencia</h1>
+                <p>Universidad del Sinú · Proyectos y fases</p>
+            </div>
+            <div class="role-grid role-grid--single">
+                <div class="role-card" id="btn-soy-profesor" tabindex="0" role="button">
+                    <div class="role-card__eyebrow">Panel del docente</div>
+                    <h2>Panel del profesor</h2>
+                    <p>Consulta tus proyectos y sus fases, genera enlaces de registro y códigos QR de asistencia, y
+                        revisa quién ha asistido a cada fase.</p>
+                    <span class="btn btn-primary btn-block">Entrar al panel</span>
+                </div>
+            </div>
+            <p class="hero-note">¿Eres estudiante? Usa el enlace o el código QR que te compartió tu profesor para
+                registrarte o marcar tu asistencia. No necesitas entrar por aquí.</p>
+        </section>
+
+        <!-- ADMIN LOGIN -->
+        <section id="view-admin-login" class="view">
+            <div class="login-wrapper">
+                <div class="login-box">
+                    <div class="login-header">
+                        <span class="login-icon">🔐</span>
+                        <h1>Acceso al panel</h1>
+                        <p>Ingresa la contraseña de administrador</p>
+                    </div>
+                    <form id="admin-login-form">
+                        <div class="field">
+                            <label for="admin-password-input">Contraseña</label>
+                            <input type="password" id="admin-password-input" placeholder="Ingresa la contraseña"
+                                required autofocus />
+                        </div>
+                        <button class="btn btn-primary btn-block" type="submit">Ingresar</button>
+                        <div id="admin-login-error" class="inline-msg inline-msg--error"
+                            style="display:none;margin-top:12px;">Contraseña incorrecta</div>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- ADMIN: listado de proyectos -->
+        <section id="view-admin-list" class="view">
+            <div class="view-header">
+                <h1>Proyectos disponibles</h1>
+            </div>
+            <div class="event-grid" id="project-grid"></div>
+        </section>
+
+        <!-- ADMIN: detalle de un proyecto -->
+        <section id="view-admin-detail" class="view">
+            <button class="back-btn" id="back-to-list">← Volver a mis proyectos</button>
+            <div class="detail-head">
+                <div class="detail-head__main">
+                    <h1 id="detail-title">Cargando…</h1>
+                    <p id="detail-sub"></p>
+                </div>
+                <div class="detail-head__stats" id="detail-stats"></div>
+            </div>
+
+            <div class="panel" style="margin-bottom:18px;padding:12px 18px;">
+                <div class="section-title" style="font-size:16px;margin-bottom:2px;">Descripción</div>
+                <p id="event-desc" style="color:var(--gray-600);font-size:13px;margin:0;"></p>
+            </div>
+
+            <div class="panel">
+                <div class="section-title">Fases del proyecto</div>
+                <p class="section-sub">Selecciona una fase para ver sus participantes, su asistencia y generar enlaces
+                </p>
+                <div class="phase-list" id="phase-list"></div>
+            </div>
+        </section>
+
+        <!-- ADMIN: detalle de una fase -->
+        <section id="view-fase-detail" class="view">
+            <button class="back-btn" id="back-to-project">← Volver al proyecto</button>
+            <div class="detail-head">
+                <h1 id="fase-detail-title">Cargando…</h1>
+                <p id="fase-detail-sub"></p>
+            </div>
+
+            <div class="tabs fase-tabs">
+                <button class="fase-tab-btn active" data-fase-tab="participantes">Participantes y Asistencia</button>
+                <button class="fase-tab-btn" data-fase-tab="enlaces">Enlaces</button>
+            </div>
+
+            <!-- Fase tab: Participantes y Asistencia (unificada) -->
+            <div class="fase-tab-panel active" id="fase-tab-participantes">
+                <div class="panel">
+                    <div class="table-toolbar">
+                        <div class="section-title" style="margin:0;font-size:17px;">Participantes inscritos</div>
+                        <span class="badge" id="fase-participantes-count">0 participantes</span>
+                    </div>
+                    <div class="table-toolbar" style="margin-top:4px;">
+                        <input type="text" id="fase-asistencia-search" class="search-input"
+                            placeholder="Buscar por nombre o correo…" />
+                        <select id="asistencia-filter-mode">
+                            <option value="todas">Todas las fechas</option>
+                            <option value="semana">Esta semana</option>
+                            <option value="rango">Rango de fechas</option>
+                        </select>
+                    </div>
+                    <div class="filter-range hidden" id="filtro-rango-row">
+                        <div class="field"><label for="filtro-desde">Desde</label><input type="date"
+                                id="filtro-desde" /></div>
+                        <div class="field"><label for="filtro-hasta">Hasta</label><input type="date"
+                                id="filtro-hasta" /></div>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="att-table">
+                            <thead>
+                                <tr>
+                                    <th>Participante</th>
+                                    <th>Fecha de asignación</th>
+                                    <th>N.° asistencias</th>
+                                    <th>Última asistencia</th>
+                                    <th>Fechas registradas</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fase-participantes-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fase tab: Enlaces -->
+            <div class="fase-tab-panel" id="fase-tab-enlaces">
+                <div class="panel qr-layout" style="margin-bottom:18px;">
+                    <div class="qr-box" id="qr-registro-box" style="position:relative;"></div>
+                    <div class="qr-side">
+                        <div class="section-title">Enlace de registro</div>
+                        <p class="section-sub">Comparte este código o enlace para que nuevos participantes se registren
+                            en esta fase.</p>
+                        <div class="qr-link-row">
+                            <input type="text" id="enlace-registro-input" readonly />
+                            <button class="btn btn-ghost" id="copy-registro-btn">Copiar</button>
+                        </div>
+                        <div style="display:flex;gap:8px;margin-top:6px;">
+                            <button class="btn btn-outline" id="download-registro-qr"
+                                style="font-size:12px;padding:6px 12px;">Descargar QR</button>
+                            <button class="btn btn-outline" id="expand-registro-qr"
+                                style="font-size:12px;padding:6px 12px;">Ampliar</button>
+                        </div>
+                        <p class="field-hint">Este enlace no vence: cada persona que lo use quedará registrada en el
+                            proyecto y asignada a esta fase.</p>
+                    </div>
+                </div>
+
+                <div class="panel qr-layout">
+                    <div class="qr-box" id="qr-asistencia-box" style="position:relative;"></div>
+                    <div class="qr-side">
+                        <div class="section-title">Código de asistencia de hoy</div>
+                        <p class="section-sub" id="asistencia-hoy-fecha">Proyecta este código para marcar la asistencia
+                            de la clase de hoy.</p>
+                        <div class="qr-link-row">
+                            <input type="text" id="enlace-asistencia-input" readonly />
+                            <button class="btn btn-ghost" id="copy-asistencia-btn">Copiar</button>
+                        </div>
+                        <div style="display:flex;gap:8px;margin-top:6px;">
+                            <button class="btn btn-outline" id="download-asistencia-qr"
+                                style="font-size:12px;padding:6px 12px;">Descargar QR</button>
+                            <button class="btn btn-outline" id="expand-asistencia-qr"
+                                style="font-size:12px;padding:6px 12px;">Ampliar</button>
+                        </div>
+                        <p class="field-hint">Este código solo es válido durante el día de hoy. Al escanearlo, el
+                            estudiante solo debe ingresar su correo registrado.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ESTUDIANTE -->
+        <section id="view-student" class="view">
+            <div class="student-shell">
+                <div style="text-align:center;">
+                    <span class="event-pill" id="student-event-pill">Cargando…</span>
+                </div>
+
+                <div class="panel" id="student-panel">
+                    <div id="student-loading" class="state-msg">
+                        <div class="spinner"></div>
+                        Cargando información…
+                    </div>
+
+                    <div id="student-error-block" class="hidden">
+                        <div class="inline-msg inline-msg--error show" id="student-error-text"></div>
+                        <button class="btn btn-outline btn-block" id="retry-evento-btn"
+                            type="button">Reintentar</button>
+                    </div>
+
+                    <div id="student-active-block" class="hidden">
+                        <div class="section-title" id="student-active-title">Registro de participantes</div>
+                        <p class="section-sub" id="student-active-sub">Completa tus datos para registrarte</p>
+                        <div id="student-inline-msg" class="inline-msg"></div>
+
+                        <form id="registro-form">
+                            <div class="field-row">
+                                <div class="field"><label for="full-nombre1-input">Nombre 1</label><input type="text"
+                                        id="full-nombre1-input" required /></div>
+                                <div class="field"><label for="full-nombre2-input">Nombre 2 (opcional)</label><input
+                                        type="text" id="full-nombre2-input" /></div>
+                            </div>
+                            <div class="field-row">
+                                <div class="field"><label for="full-apellido1-input">Apellido 1</label><input
+                                        type="text" id="full-apellido1-input" required /></div>
+                                <div class="field"><label for="full-apellido2-input">Apellido 2 (opcional)</label><input
+                                        type="text" id="full-apellido2-input" /></div>
+                            </div>
+                            <div class="field"><label for="full-correo-input">Correo electrónico</label><input
+                                    type="email" id="full-correo-input" /></div>
+                            <div class="field"><label for="full-telefono-input">Teléfono</label><input type="tel"
+                                    id="full-telefono-input" /></div>
+                            <button class="btn btn-primary btn-block" id="registro-submit-btn"
+                                type="submit">Registrarme</button>
+                        </form>
+
+                        <!-- Formulario de asistencia con verificación automática de ubicación -->
+                        <form id="checkin-form" class="hidden">
+                            <div class="field">
+                                <label for="checkin-correo-input">Correo electrónico</label>
+                                <input type="email" id="checkin-correo-input" required />
+                                <div class="field-hint">Usa el mismo correo con el que te registraste.</div>
+                            </div>
+
+                            <!-- Verificación automática de ubicación -->
+                            <div class="field">
+                                <div id="estado-ubicacion" class="field-hint"
+                                    style="margin-top:8px;font-weight:600;padding:10px 14px;border-radius:var(--radius-sm);background:var(--gray-50);border:1px solid var(--gray-200);min-height:45px;display:flex;align-items:center;">
+                                    ⏳ Verificando ubicación automáticamente...
+                                </div>
+                                <input type="hidden" id="ubicacion-verificada" value="false" />
+                                <input type="hidden" id="latitud-usuario" value="" />
+                                <input type="hidden" id="longitud-usuario" value="" />
+                            </div>
+
+                            <button class="btn btn-primary btn-block" id="checkin-submit-btn" type="submit" disabled>
+                                Marcar asistencia
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="panel verdict-card hidden" id="student-verdict">
+                    <div class="verdict-stamp">✔</div>
+                    <div class="verdict-title" id="verdict-title">Registro exitoso</div>
+                    <h2 id="verdict-nombre">Listo</h2>
+                    <p id="verdict-evento"></p>
+                    <div class="verdict-ticket">
+                        <span>Fecha</span><b id="verdict-fecha"></b>
+                        <span>Hora</span><b id="verdict-hora"></b>
+                    </div>
+                    <div style="margin-top:22px;">
+                        <button class="btn btn-outline" id="btn-registrar-otro" type="button">Registrar a otro
+                            participante</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- QR EXPAND OVERLAY -->
+        <div id="qr-expand-overlay"
+            style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:999;align-items:center;justify-content:center;flex-direction:column;">
+            <div id="qr-expand-container"
+                style="background:#fff;padding:30px;border-radius:20px;max-width:90vw;max-height:90vh;display:flex;flex-direction:column;align-items:center;">
+                <div id="qr-expand-box"
+                    style="width:400px;height:400px;display:flex;align-items:center;justify-content:center;"></div>
+                <button id="qr-expand-close"
+                    style="margin-top:20px;padding:10px 30px;border:none;border-radius:100px;background:#c8102e;color:#fff;font-weight:600;cursor:pointer;">Cerrar</button>
+            </div>
+        </div>
+
+    </main>
+
+    <footer>UNISINU · Sistema de registro y asistencia — <span id="year"></span></footer>
+    <div class="toast" id="toast"></div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
