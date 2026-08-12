@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UNISINU · Registro y Asistencia</title>
+    <title>EVA · Entorno Virtual de Actividades</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -17,55 +17,56 @@
 <body>
     <header class="topbar">
         <div class="brand">
-            <span class="brand__mark">UNISINU</span>
-            <span class="brand__sub">REGISTRO · ASISTENCIA</span>
+            <div class="brand__logo">
+                <img src="assets/img/logo.png" alt="Logo" class="brand__logo-img">
+            </div>
+            <div>
+                <div class="brand__mark">Entorno Virtual de Actividades</div>
+                <div class="brand__sub">UNISINU · Registro y Control</div>
+            </div>
         </div>
     </header>
 
     <main>
         <section id="view-home" class="view active">
             <div class="hero">
-                <h1>Registro y asistencia</h1>
+                <div class="hero__badge"><i class="fas fa-graduation-cap"></i> EVA · v3.0</div>
+                <h1>Registro y asistencia <span>inteligente</span></h1>
                 <p>Universidad del Sinú · Proyectos y fases</p>
             </div>
             <div class="role-grid role-grid--single">
                 <div class="role-card" id="btn-soy-profesor" tabindex="0" role="button">
-                    <div class="role-card__eyebrow">Panel del docente</div>
-                    <h2>Panel del profesor</h2>
-                    <p>Consulta tus proyectos y sus fases, genera enlaces de registro y códigos QR de asistencia, y
-                        revisa quién ha asistido a cada fase.</p>
-                    <span class="btn btn-primary btn-block">Entrar al panel</span>
+                    <div class="role-card__eyebrow"><i class="fas fa-chalkboard-teacher"></i> Panel del docente</div>
+                    <h2>Acceso al sistema</h2>
+                    <p>Gestiona tus proyectos, genera enlaces de registro y códigos QR de asistencia, y revisa quién ha
+                        asistido a cada fase.</p>
+                    <span class="btn btn-primary btn-block"><i class="fas fa-sign-in-alt"></i> Entrar al panel</span>
                 </div>
             </div>
-            <p class="hero-note">¿Eres estudiante? Usa el enlace o el código QR que te compartió tu profesor para
-                registrarte o marcar tu asistencia. No necesitas entrar por aquí.</p>
+            <p class="hero-note"><i class="fas fa-qrcode"></i> ¿Eres estudiante? Usa el enlace o el código QR que te
+                compartió tu profesor para registrarte o marcar tu asistencia.</p>
         </section>
     </main>
 
-    <footer>UNISINU · Sistema de registro y asistencia — <span id="year"></span></footer>
+    <footer>EVA · Entorno Virtual de Actividades — <span id="year"></span> - v 3.0</footer>
     <div class="toast" id="toast"></div>
 
     <script>
-        // Script inline para manejar la navegación básica de index.html
         (function () {
-            // Año en el footer
             document.getElementById('year').textContent = new Date().getFullYear();
 
-            // Redirigir a app.html si hay parámetros en la URL (desde QR o enlace)
             const params = new URLSearchParams(window.location.search);
             if (params.has('proyecto') || params.has('modo')) {
                 window.location.href = 'app.html' + window.location.search;
                 return;
             }
 
-            // Botón "Entrar al panel" - redirige a app.html
             const btnProfesor = document.getElementById('btn-soy-profesor');
             if (btnProfesor) {
                 btnProfesor.addEventListener('click', function () {
                     window.location.href = 'app.html';
                 });
 
-                // Soporte para teclado (Enter o Space)
                 btnProfesor.addEventListener('keypress', function (e) {
                     if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();

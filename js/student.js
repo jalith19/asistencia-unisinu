@@ -5,7 +5,6 @@ import { esc, todayParts, fechaLegible, generarIdParticipante, buscarPorCorreo, 
 import { enviarCorreo, plantillaConfirmacionRegistro, plantillaConfirmacionAsistencia } from './email.js';
 import { GEO_CONFIG } from './config.js';
 
-// Cache de datos para evitar múltiples peticiones
 let datosCache = {
     proyecto: null,
     fase: null,
@@ -42,10 +41,9 @@ export async function loadRegistro(proyectoId, faseIndex) {
     if (retryBtn) retryBtn.classList.remove("hidden");
 
     try {
-        // Cargar todos los datos una sola vez
         const [proyecto, fase] = await Promise.all([
-            fbGet(`${proyectoId}`),
-            fbGet(`${proyectoId}/fases/${faseIndex}`)
+            fbGet(`proyectos/${proyectoId}`),
+            fbGet(`proyectos/${proyectoId}/fases/${faseIndex}`)
         ]);
 
         if (!proyecto || typeof proyecto !== "object") {
@@ -58,7 +56,6 @@ export async function loadRegistro(proyectoId, faseIndex) {
             throw new Error("La fase indicada no existe en este proyecto.");
         }
 
-        // Guardar en cache
         datosCache.proyecto = proyecto;
         datosCache.fase = faseData;
         datosCache.roster = Array.isArray(proyecto.participantes) ? proyecto.participantes : [];
@@ -130,10 +127,9 @@ export async function loadCheckin(proyectoId, faseIndex, fechaParam) {
     }
 
     try {
-        // Cargar todos los datos una sola vez
         const [proyecto, fase] = await Promise.all([
-            fbGet(`${proyectoId}`),
-            fbGet(`${proyectoId}/fases/${faseIndex}`)
+            fbGet(`proyectos/${proyectoId}`),
+            fbGet(`proyectos/${proyectoId}/fases/${faseIndex}`)
         ]);
 
         if (!proyecto || typeof proyecto !== "object") {
@@ -146,7 +142,6 @@ export async function loadCheckin(proyectoId, faseIndex, fechaParam) {
             throw new Error("La fase indicada no existe en este proyecto.");
         }
 
-        // Guardar en cache
         datosCache.proyecto = proyecto;
         datosCache.fase = faseData;
         datosCache.roster = Array.isArray(proyecto.participantes) ? proyecto.participantes : [];
@@ -295,17 +290,19 @@ async function verificarUbicacionAutomatica() {
 export function setupStudentForms() {
     const registroForm = document.getElementById("registro-form");
     if (registroForm) {
-        registroForm.addEventListener("submit", (e) => {
+        registroForm.addEventListener("submit", async (e) => {
             e.preventDefault();
-            handleRegistro();
+            e.stopPropagation();
+            await handleRegistro();
         });
     }
 
     const checkinForm = document.getElementById("checkin-form");
     if (checkinForm) {
-        checkinForm.addEventListener("submit", (e) => {
+        checkinForm.addEventListener("submit", async (e) => {
             e.preventDefault();
-            handleCheckin();
+            e.stopPropagation();
+            await handleCheckin();
         });
     }
 
@@ -313,7 +310,6 @@ export function setupStudentForms() {
     if (retryBtn) {
         retryBtn.addEventListener("click", () => {
             if (state.proyectoId === null || state.faseIndex === null) return;
-            // Resetear cache para forzar recarga
             datosCache.cargado = false;
             if (state.mode === "asistencia") {
                 loadCheckin(state.proyectoId, state.faseIndex, todayParts().fecha);
@@ -391,7 +387,7 @@ function generarHTMLResumen(resumen) {
     let detallesHTML = '';
     if (detalles && detalles.length > 0) {
         detallesHTML = detalles.map(d => {
-            const icono = d.asistio ? '✓' : '✕';
+            const icono = d.asistio ? '✔' : '✖';
             const clase = d.asistio ? 'asistio' : 'falta';
             const fecha = d.fecha || '—';
             const hora = d.hora || '—';
@@ -458,7 +454,6 @@ async function handleRegistro() {
     try {
         const nombreCompleto = [apellido1Val, apellido2Val, nombre1Val, nombre2Val].filter(Boolean).join(" ").trim();
 
-        // Usar datos del cache
         let roster = datosCache.roster;
         let faseList = datosCache.faseParticipantes;
 
@@ -487,7 +482,7 @@ async function handleRegistro() {
             const actualizado = { ...participante, nombre: nombreCompleto, telefono: telefono };
             const idxExistente = roster.findIndex((r) => r && r.id === participante.id);
             if (idxExistente !== -1) {
-                await fbPut(`${state.proyectoId}/participantes/${idxExistente}`, actualizado);
+                await fbPut(`proyectos/${state.proyectoId}/participantes/${idxExistente}`, actualizado);
                 roster[idxExistente] = actualizado;
                 participante = actualizado;
                 datosCache.roster = roster;
@@ -496,7 +491,7 @@ async function handleRegistro() {
 
         if (esNuevo) {
             const idx = roster.length;
-            await fbPut(`${state.proyectoId}/participantes/${idx}`, participante);
+            await fbPut(`proyectos/${state.proyectoId}/participantes/${idx}`, participante);
             roster.push(participante);
             datosCache.roster = roster;
         }
@@ -510,12 +505,22 @@ async function handleRegistro() {
                 puntaje: 0
             };
             const idx2 = faseList.length;
-            await fbPut(`${state.proyectoId}/fases/${state.faseIndex}/participantes/${idx2}`, asignacion);
+            await fbPut(`proyectos/${state.proyectoId}/fases/${state.faseIndex}/participantes/${idx2}`, asignacion);
             faseList.push(asignacion);
             datosCache.faseParticipantes = faseList;
 
             state.rosterProyecto = roster;
             state.currentRosterProyecto = roster;
+
+            // Actualizar el cache de administración para que muestre los nuevos participantes
+            if (typeof window.actualizarCacheAdminDesdeEstudiante === 'function') {
+                try {
+                    await window.actualizarCacheAdminDesdeEstudiante(state.proyectoId, state.faseIndex);
+                    console.log("Cache de administración actualizado desde estudiante");
+                } catch (e) {
+                    console.warn("No se pudo actualizar cache de admin:", e);
+                }
+            }
 
             enviarConfirmacionRegistro(correo, participante.nombre || nombreCompleto);
             showVerdictRegistro(participante.nombre || nombreCompleto, entry);
@@ -562,7 +567,6 @@ async function handleCheckin() {
     hideStudentMessage();
 
     try {
-        // Usar datos del cache
         const roster = datosCache.roster;
         const participante = buscarPorCorreo(roster, correo);
 
@@ -617,15 +621,21 @@ async function handleCheckin() {
         };
 
         asistencias.push(asistenciaConUbicacion);
+        await fbPatch(`proyectos/${state.proyectoId}/fases/${state.faseIndex}/participantes/${idxEnFase}`, { asistencias });
 
-        // Actualizar en Firebase
-        await fbPatch(`${state.proyectoId}/fases/${state.faseIndex}/participantes/${idxEnFase}`, { asistencias });
-
-        // Actualizar cache
         faseList[idxEnFase].asistencias = asistencias;
         datosCache.faseParticipantes = faseList;
 
-        // Obtener todas las fechas de asistencia de la fase (de todos los participantes)
+        // Actualizar cache de administración después de marcar asistencia
+        if (typeof window.actualizarCacheAdminDesdeEstudiante === 'function') {
+            try {
+                await window.actualizarCacheAdminDesdeEstudiante(state.proyectoId, state.faseIndex);
+                console.log("Cache de administración actualizado después de asistencia");
+            } catch (e) {
+                console.warn("No se pudo actualizar cache de admin:", e);
+            }
+        }
+
         const todasLasFechas = new Set();
         faseList.forEach(fp => {
             if (fp && Array.isArray(fp.asistencias)) {
@@ -636,7 +646,6 @@ async function handleCheckin() {
         });
         const fechasOrdenadas = Array.from(todasLasFechas).sort();
 
-        // Crear resumen para el estudiante
         const fechasAsistencia = new Set(asistencias.map(a => a.fecha));
         const resumen = {
             totalSesiones: fechasOrdenadas.length,

@@ -2,7 +2,10 @@ let toastTimer = null;
 
 export function toast(msg) {
     const el = document.getElementById("toast");
-    if (!el) return;
+    if (!el) {
+        console.warn("Toast element not found:", msg);
+        return;
+    }
     el.textContent = msg;
     el.classList.add("show");
     clearTimeout(toastTimer);
@@ -32,11 +35,15 @@ export function showView(name) {
 }
 
 export function activateFaseTab(tab) {
-    document.querySelectorAll(".fase-tab-btn").forEach((b) => {
-        b.classList.toggle("active", b.dataset.faseTab === tab);
+    // Buscar por la clase antigua y la nueva
+    document.querySelectorAll(".fase-tab-btn, .tab-btn").forEach((b) => {
+        const tabName = b.dataset.faseTab || b.dataset.tab;
+        b.classList.toggle("active", tabName === tab);
     });
-    document.querySelectorAll(".fase-tab-panel").forEach((p) => {
-        p.classList.toggle("active", p.id === `fase-tab-${tab}`);
+    document.querySelectorAll(".fase-tab-panel, .tab-panel").forEach((p) => {
+        const panelId = p.id;
+        const isActive = panelId === `fase-tab-${tab}` || panelId === `tab-${tab}`;
+        p.classList.toggle("active", isActive);
     });
     sessionStorage.setItem("faseTab", tab);
 }

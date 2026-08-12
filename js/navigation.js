@@ -17,6 +17,12 @@ export let state = {
     rosterProyecto: [],
     isStudentView: false,
     isAdmin: false,
+    isSuperUser: false,
+    userEmail: null,
+    userId: null,
+    userRol: null,
+    proyectosPropios: [],
+    proyectosColaborador: [],
     qrRegistroInstance: null,
     qrAsistenciaInstance: null,
     adminPassword: null,
@@ -27,18 +33,29 @@ export function saveCurrentRoute() {
     try {
         const activeView = document.querySelector(".view.active");
         if (!activeView) return;
-        
+
         const viewName = activeView.id?.replace("view-", "") || "admin-login";
-        
+
+        const activeTab = document.querySelector(".tab-btn.active, .fase-tab-btn.active");
+        const tabName = activeTab?.dataset?.tab || activeTab?.dataset?.faseTab || "participantes";
+
         const route = {
             view: viewName,
             projectId: state.currentProjectId,
             faseIndex: state.currentFaseIndex,
-            tab: document.querySelector(".fase-tab-btn.active")?.dataset?.faseTab || "participantes",
+            tab: tabName,
             isAdmin: state.isAdmin || false,
+            isSuperUser: state.isSuperUser || false,
+            userEmail: state.userEmail || null,
+            userId: state.userId || null,
+            userRol: state.userRol || null,
+            proyectosPropios: state.proyectosPropios || [],
+            proyectosColaborador: state.proyectosColaborador || [],
         };
         sessionStorage.setItem("adminRoute", JSON.stringify(route));
-    } catch (e) { }
+    } catch (e) {
+        console.error("Error guardando ruta:", e);
+    }
 }
 
 export function restoreRoute() {
@@ -46,24 +63,58 @@ export function restoreRoute() {
         const data = sessionStorage.getItem("adminRoute");
         if (!data) return false;
         const route = JSON.parse(data);
-        
+
         state.isAdmin = route.isAdmin || false;
-        
-        if (!route.view || route.view === "home" || route.view === "admin-login") {
-            if (!state.isAdmin) {
-                showView("admin-login");
-                return false;
-            }
+        state.isSuperUser = route.isSuperUser || false;
+        state.userEmail = route.userEmail || null;
+        state.userId = route.userId || null;
+        state.userRol = route.userRol || null;
+        state.proyectosPropios = route.proyectosPropios || [];
+        state.proyectosColaborador = route.proyectosColaborador || [];
+        state.currentProjectId = route.projectId || null;
+        state.currentFaseIndex = route.faseIndex || null;
+
+        if (!state.isAdmin) {
+            showView("admin-login");
             return false;
         }
-        
-        if (route.view === "admin-list") {
+
+        if (window.actualizarMenuUI) {
+            setTimeout(() => window.actualizarMenuUI(), 50);
+        }
+
+        if (route.view === "admin-list" || !route.view || route.view === "home") {
             showView("admin-list");
             import('./admin.js').then(module => {
-                module.loadProjectList();
+                if (state.isSuperUser) {
+                    module.loadProjectList();
+                } else {
+                    module.loadProjectListByOwner(state.userId);
+                }
             });
             return true;
         }
+
+        if (route.view === "solicitar-proyecto") {
+            showView("solicitar-proyecto");
+            return true;
+        }
+
+        if (route.view === "solicitudes") {
+            if (!state.isSuperUser) {
+                showView("admin-list");
+                import('./admin.js').then(module => {
+                    module.loadProjectList();
+                });
+                return false;
+            }
+            showView("solicitudes");
+            import('./admin.js').then(module => {
+                module.cargarSolicitudes();
+            });
+            return true;
+        }
+
         if (route.view === "admin-detail" && route.projectId !== null && route.projectId !== undefined) {
             state.currentProjectId = route.projectId;
             showView("admin-detail");
@@ -72,6 +123,7 @@ export function restoreRoute() {
             });
             return true;
         }
+
         if (route.view === "fase-detail" && route.projectId !== null && route.projectId !== undefined && route.faseIndex !== null) {
             state.currentProjectId = route.projectId;
             state.currentFaseIndex = route.faseIndex;
@@ -81,37 +133,79 @@ export function restoreRoute() {
             });
             return true;
         }
+
         if (route.view === "qr-detail") {
-            showView("admin-login");
-            return false;
+            showView("admin-list");
+            import('./admin.js').then(module => {
+                if (state.isSuperUser) {
+                    module.loadProjectList();
+                } else {
+                    module.loadProjectListByOwner(state.userId);
+                }
+            });
+            return true;
         }
+
         if (route.view === "student") {
-            showView("admin-login");
-            return false;
+            showView("admin-list");
+            import('./admin.js').then(module => {
+                if (state.isSuperUser) {
+                    module.loadProjectList();
+                } else {
+                    module.loadProjectListByOwner(state.userId);
+                }
+            });
+            return true;
         }
-        
-        return false;
-    } catch (e) { 
+
+        showView("admin-list");
+        import('./admin.js').then(module => {
+            if (state.isSuperUser) {
+                module.loadProjectList();
+            } else {
+                module.loadProjectListByOwner(state.userId);
+            }
+        });
+        return true;
+    } catch (e) {
         console.error("Error restaurando ruta:", e);
-        return false; 
+        showView("admin-login");
+        return false;
+    }
+}
+
+export function goToHome() {
+    if (state.isAdmin) {
+        showView("admin-list");
+        import('./admin.js').then(module => {
+            if (state.isSuperUser) {
+                module.loadProjectList();
+            } else {
+                module.loadProjectListByOwner(state.userId);
+            }
+        });
+        saveCurrentRoute();
+        if (window.actualizarMenuUI) {
+            setTimeout(() => window.actualizarMenuUI(), 50);
+        }
+    } else {
+        showView("admin-login");
     }
 }
 
 export function resetToHome() {
-    // Limpiar cache de admin
-    if (typeof window.adminCache !== 'undefined') {
-        window.adminCache.proyectos = [];
-        window.adminCache.proyectoActual = null;
-        window.adminCache.cargado = false;
-        window.adminCache.proyectoIdActual = null;
-    }
-    
     sessionStorage.removeItem("adminRoute");
     state.isAdmin = false;
+    state.isSuperUser = false;
+    state.userEmail = null;
+    state.userId = null;
+    state.userRol = null;
     state.currentProjectId = null;
     state.currentFaseIndex = null;
     state.proyectoId = null;
     state.faseIndex = null;
-    
+    state.proyectosPropios = [];
+    state.proyectosColaborador = [];
+
     window.location.href = '/';
 }

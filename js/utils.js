@@ -8,11 +8,15 @@ export function esc(str) {
 
 export function todayParts() {
     const now = new Date();
+    // Usar formato local para Colombia (UTC-5)
+    const fechaLocal = now.toLocaleDateString('fr-CA'); // YYYY-MM-DD
+    const horaLocal = now.toLocaleTimeString('es-CO', { hour12: false }); // HH:MM:SS
+
     return {
-        fecha: now.toISOString().slice(0, 10),
+        fecha: fechaLocal,
         dia: DIAS[now.getDay()],
-        hora: now.toTimeString().slice(0, 8),
-        timestamp: now.toISOString().slice(0, 19).replace("T", " "),
+        hora: horaLocal,
+        timestamp: `${fechaLocal} ${horaLocal}`,
     };
 }
 
